@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiosk Visitor Template</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #1e297a;
+            --accent-color: #b565ed;
+            --bg-color: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-color);
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(30, 41, 122, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(30, 41, 122, 0.05);
+        }
+
+        .gradient-text {
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Ambient Background Animation */
+        .ambient-bg {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(45deg, var(--primary-color), #313da8, var(--accent-color), #d66ded);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            z-index: 0;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .pulse-soft {
+            animation: pulse 3s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.02); opacity: 0.9; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Running Text Ticker */
+        .ticker-container {
+            width: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color), var(--primary-color));
+            padding: 0.6rem 0;
+            overflow: hidden;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(30, 41, 122, 0.15);
+            position: relative;
+            z-index: 20;
+        }
+
+        .ticker-wrapper {
+            display: inline-block;
+            animation: tickerScroll 60s linear infinite;
+        }
+
+        @keyframes tickerScroll {
+            0% { transform: translateX(100vw); }
+            100% { transform: translateX(-100%); }
+        }
+
+        .ticker-item {
+            display: inline-block;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 0 3rem;
+            position: relative;
+        }
+
+        .ticker-item::after {
+            content: "✦";
+            position: absolute;
+            right: 0;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        /* Carousel Progress Bar */
+        .carousel-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: var(--accent-color);
+            width: 0%;
+            z-index: 50;
+        }
+
+        .show-progress {
+            animation: progressCount 8s linear forwards;
+        }
+
+        @keyframes progressCount {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            background-color: var(--primary-color);
+        }
+
+        .active-nav {
+            background-color: rgba(0, 0, 0, 0.2) !important;
+            color: var(--accent-color) !important;
+            position: relative;
+        }
+
+        .active-nav::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 15%;
+            bottom: 15%;
+            width: 4px;
+            background: var(--accent-color);
+            border-radius: 0 4px 4px 0;
+            box-shadow: 0 0 10px rgba(181, 101, 237, 0.5);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        
+        .touch-scroll {
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+        }
+
+        .btn-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-card:active { transform: scale(0.95); }
+    </style>
+</head>
+<body onclick="wakeUp()" class="overflow-hidden">
+    <div class="ambient-bg"></div>
+    
+    <!-- App Container -->
+    <div id="app" class="relative w-full h-full glass-panel overflow-hidden flex flex-col transition-all duration-700">
+        <div id="carousel-progress" class="carousel-progress"></div>
+        
+        <!-- Sidebar dynamically generated -->
+        <div id="sidebar" class="absolute left-0 top-0 bottom-0 w-28 sidebar flex flex-col items-center py-8 gap-8 text-slate-400 z-10 transition-all duration-300">
+            <!-- Icons injected here -->
+        </div>
+
+        <!-- Area Konten Utama -->
+        <main class="ml-28 flex-1 flex flex-col relative transition-all duration-300 min-h-0">
+            
+            <!-- Dynamic Ticker -->
+            <div class="ticker-container">
+                <div id="ticker-target" class="ticker-wrapper"></div>
+            </div>
+
+            <header id="app-header" class="p-8 flex justify-between items-center shrink-0">
+                <!-- Header content injected here -->
+            </header>
+
+            <div id="screen-container" class="px-12 flex-1 relative overflow-hidden min-h-0">
+                <!-- Screens injected here -->
+            </div>
+        </main>
+
+        <!-- Check-in Modal -->
+        <div id="check-in-modal" class="hidden absolute inset-0 bg-white/80 backdrop-blur-md z-20 flex flex-col items-center justify-center p-8 fade-in">
+            <button onclick="hideCheckIn(event)" class="absolute top-8 right-8 p-2 hover:bg-slate-100 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+            <div class="max-w-md w-full text-center">
+                <h2 id="modal-title" class="text-3xl font-bold mb-8">Cari Nama Anda</h2>
+                <input type="text" id="name-input" placeholder="Masukkan nama lengkap..." class="w-full text-2xl p-6 rounded-2xl border-2 border-slate-100 outline-none shadow-inner mb-6 focus:border-purple-400">
+                <button onclick="completeCheckIn(event)" id="confirm-btn" class="w-full text-white text-xl font-bold p-6 rounded-2xl shadow-lg">Konfirmasi Kehadiran</button>
+            </div>
+        </div>
+
+        <!-- Success Screen -->
+        <div id="success-screen" class="hidden absolute inset-0 flex flex-col items-center justify-center p-8 z-30 text-white">
+            <h2 class="text-4xl font-bold mb-4">Halo, <span id="user-name-display">Tamu</span>!</h2>
+            <p class="text-xl opacity-90 mb-8">Registrasi Anda berhasil.</p>
+            <button onclick="resetApp(event)" class="bg-white px-12 py-4 rounded-full font-bold text-xl transition-transform hover:scale-105">Selesai</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * ==========================================
+         * TEMA & KONFIGURASI (EDIT DI SINI)
+         * ==========================================
+         */
+        const CONFIG = {
+            theme: {
+                primary: "#1e3a8a", // Default Blue
+                accent: "#3b82f6",  // Bright Blue
+                background: "#ffffff"
+            },
+            event: {
+                name: "Nama Acara Anda",
+                fullName: "Grand Opening & Tech Showcase 2025",
+                ticker: [
+                    "Selamat Datang di Acara Grand Opening Kami!",
+                    "Gunakan Menu 'Check-in Mandiri' untuk mencatat kehadiran Anda",
+                    "Koneksi Wi-Fi: NAMA_WIFI_ACARA (Tanpa Password)",
+                    "Terima kasih atas kunjungan Anda hari ini!"
+                ]
+            },
+            // Metadata Screen Dashboard
+            dashboard: {
+                title: "Selamat Datang",
+                subtitle: "Silakan pilih menu untuk informasi lebih lanjut",
+                visitorPreviewLabel: "Tamu Terdaftar",
+                visitorPreviewSummary: "Daftar tamu yang telah hadir di lokasi"
+            },
+            // Daftar Tamu (Hardcoded Dummy)
+            visitors: [
+                "Budi Santoso", "Siti Aminah", "Andi Wijaya", 
+                "Rina Pratama", "Eko Prasetyo", "Dewi Lestari", 
+                "Agus Kurniawan", "Lani Wijaya", "Rudi Hermawan", 
+                "Maya Indah", "Fajar Ramadhan", "Sinta Bella", 
+                "Hendra Saputra", "Yuni Kartika", "Doni Setiawan"
+            ],
+            // Agenda Acara
+            schedule: [
+                { time: "08:00 - 09:00", title: "Registrasi & Coffee Morning", status: "completed" },
+                { time: "09:00 - 10:00", title: "Pembukaan & Sambutan", status: "completed" },
+                { time: "10:00 - 12:00", title: "Sesi Utama: Presentasi Produk", status: "current" },
+                { time: "12:00 - 13:00", title: "Istirahat & Makan Siang", status: "upcoming" },
+                { time: "13:00 - 15:00", title: "Workshop & Sesi Tanya Jawab", status: "upcoming" },
+                { time: "15:00 - 16:00", title: "Networking & Penutup", status: "upcoming" }
+            ],
+            // Peta Lokasi
+            map: {
+                rooms: [
+                    { id: "utama", name: "Ruang Utama", x: 40, y: 40, w: 160, h: 220, type: "primary" },
+                    { id: "media", name: "Ruang Media", x: 220, y: 40, w: 130, h: 90, type: "secondary" },
+                    { id: "istirahat", name: "Area Istirahat", x: 220, y: 170, w: 130, h: 90, type: "accent" }
+                ],
+                userPos: { x: 210, y: 150, label: "LOKASI ANDA" }
+            }
+        };
+
+        /**
+         * ==========================================
+         * LOGIKA APLIKASI (JANGAN DIEDIT KECUALI PERLU)
+         * ==========================================
+         */
+        
+        // Initialize Theme Colors
+        document.documentElement.style.setProperty('--primary-color', CONFIG.theme.primary);
+        document.documentElement.style.setProperty('--accent-color', CONFIG.theme.accent);
+        document.documentElement.style.setProperty('--bg-color', CONFIG.theme.background);
+        document.getElementById('success-screen').style.backgroundColor = CONFIG.theme.primary;
+        document.getElementById('confirm-btn').style.backgroundColor = CONFIG.theme.primary;
+        document.getElementById('modal-title').style.color = CONFIG.theme.primary;
+
+        const screens = ['home', 'schedule', 'map', 'visitors'];
+        let currentScreenIndex = 0;
+        let idleTimer;
+        let slideshowInterval;
+        const app = document.getElementById('app');
+        const progressBar = document.getElementById('carousel-progress');
+
+        // Dynamic Rendering Functions
+        function initApp() {
+            renderSidebar();
+            renderTicker();
+            renderHeader();
+            renderScreens();
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            resetIdleTimer();
+            navigate('home');
+        }
+
+        function renderSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const icons = {
+                home: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+                schedule: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>',
+                map: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>',
+                visitors: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+            };
+            const labels = { home: 'Beranda', schedule: 'Jadwal', map: 'Peta', visitors: 'Tamu' };
+
+            sidebar.innerHTML = '';
+            screens.forEach(s => {
+                const btn = document.createElement('button');
+                btn.id = `nav-${s}`;
+                btn.className = 'nav-btn flex flex-col items-center gap-1 p-3 w-20 rounded-xl hover:bg-black/10 transition-all';
+                btn.onclick = () => navigate(s);
+                btn.innerHTML = `${icons[s]}<span class="text-[10px] font-bold uppercase tracking-wider">${labels[s]}</span>`;
+                sidebar.appendChild(btn);
+            });
+        }
+
+        function renderTicker() {
+            const target = document.getElementById('ticker-target');
+            target.innerHTML = CONFIG.event.ticker.map(msg => `<span class="ticker-item">${msg}</span>`).join('');
+        }
+
+        function renderHeader() {
+            const header = document.getElementById('app-header');
+            header.innerHTML = `
+                <div>
+                    <h2 class="text-sm font-semibold tracking-widest uppercase" style="color:var(--primary-color)">Acara: ${CONFIG.event.name}</h2>
+                    <div id="clock" class="text-2xl font-bold text-slate-800">00:00</div>
+                </div>
+                <div class="bg-purple-50 text-purple-700 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2">
+                    <span class="w-2 h-2 bg-purple-600 rounded-full animate-ping"></span>
+                    Status: Berlangsung
+                </div>
+            `;
+        }
+
+        function renderScreens() {
+            const container = document.getElementById('screen-container');
+            container.innerHTML = `
+                <!-- HOME -->
+                <div id="screen-home" class="screen fade-in h-full flex flex-col overflow-hidden min-h-0">
+                    <div class="mb-12 shrink-0">
+                        <h1 class="text-5xl font-bold text-slate-900 mb-2">${CONFIG.dashboard.title}, <span class="gradient-text">Tamu</span></h1>
+                        <p class="text-xl text-slate-500">${CONFIG.dashboard.subtitle}</p>
+                    </div>
+                    <div class="flex-1 overflow-y-auto pr-4 custom-scrollbar pb-10 min-h-0 touch-scroll">
+                        <div class="grid grid-cols-2 gap-8">
+                            <button onclick="showCheckIn()" class="btn-card group bg-white p-8 rounded-3xl border-2 border-transparent hover:border-accent shadow-xl flex flex-col items-center text-center gap-6" style="--tw-border-opacity: 1; border-color: transparent">
+                                <div class="w-20 h-20 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 group-hover:bg-[#1e297a] group-hover:text-white transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Check-in Mandiri</h3>
+                                    <p class="text-slate-500">Scan QR atau masukkan nama</p>
+                                </div>
+                            </button>
+                            <button onclick="navigate('schedule')" class="btn-card group bg-white p-8 rounded-3xl border-2 border-transparent hover:border-accent shadow-xl flex flex-col items-center text-center gap-6">
+                                <div class="w-20 h-20 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 group-hover:bg-[#1e297a] group-hover:text-white transition-all">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-2xl font-bold text-slate-800 mb-2">Jadwal Acara</h3>
+                                    <p class="text-slate-500">Lihat agenda hari ini</p>
+                                </div>
+                            </button>
+                            <button onclick="navigate('visitors')" class="btn-card group bg-white p-6 rounded-3xl border-2 border-transparent hover:border-accent shadow-xl flex flex-col items-center text-center gap-4 col-span-2">
+                                <div class="flex items-center justify-between w-full p-2">
+                                    <div class="flex items-center gap-6 text-left">
+                                        <div class="w-16 h-16 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 group-hover:bg-[#1e297a] group-hover:text-white transition-all">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                                        </div>
+                                        <div class="text-slate-800">
+                                            <h3 class="text-2xl font-bold">${CONFIG.visitors.length} ${CONFIG.dashboard.visitorPreviewLabel}</h3>
+                                            <p class="text-slate-500">${CONFIG.dashboard.visitorPreviewSummary}</p>
+                                        </div>
+                                    </div>
+                                    <div class="bg-purple-100 text-purple-700 p-4 rounded-2xl">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SCHEDULE -->
+                <div id="screen-schedule" class="screen hidden fade-in h-full flex flex-col overflow-hidden min-h-0">
+                    <h2 class="text-3xl font-bold text-slate-900 mb-6 shrink-0">Agenda Hari Ini</h2>
+                    <div class="flex-1 space-y-4 overflow-y-auto pr-4 custom-scrollbar pb-12 min-h-0 touch-scroll">
+                        ${CONFIG.schedule.map(item => `
+                            <div class="bg-white p-6 rounded-2xl border-l-4 shadow-sm flex justify-between items-center ${item.status === 'current' ? 'border-[#1e297a] bg-purple-50 pulse-soft' : 'border-purple-200'} ${item.status === 'completed' ? 'opacity-60' : ''}">
+                                <div>
+                                    <span class="font-bold text-sm uppercase ${item.status === 'current' ? 'text-[#1e297a]' : 'text-slate-400'}">${item.time}</span>
+                                    <h4 class="text-xl font-bold ${item.status === 'completed' ? 'line-through text-slate-400' : 'text-slate-800'}">${item.title}</h4>
+                                </div>
+                                ${item.status === 'current' ? '<span class="bg-[#1e3a8a] text-white px-4 py-1 rounded-full text-xs font-bold uppercase animate-pulse">Sekarang</span>' : ''}
+                                ${item.status === 'completed' ? '<span class="text-slate-400 text-xs font-bold uppercase">Selesai</span>' : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <!-- MAP -->
+                <div id="screen-map" class="screen hidden fade-in h-full flex flex-col overflow-hidden min-h-0">
+                    <h2 class="text-3xl font-bold text-slate-900 mb-6 shrink-0">Peta Lokasi</h2>
+                    <div class="bg-slate-50/50 rounded-3xl flex-1 border border-slate-100 overflow-auto relative shadow-inner mb-6 custom-scrollbar min-h-0 touch-scroll">
+                        <svg viewBox="0 0 400 300" class="min-w-full min-h-full p-6" style="height: auto;">
+                            <rect x="20" y="20" width="360" height="260" rx="15" fill="white" stroke="#e2e8f0" stroke-width="2"/>
+                            ${CONFIG.map.rooms.map(room => `
+                                <rect x="${room.x}" y="${room.y}" width="${room.w}" height="${room.h}" rx="10" fill="rgba(30, 41, 122, 0.05)" stroke="var(--primary-color)" stroke-width="1.5" class="transition-all hover:fill-purple-50"/>
+                                <text x="${room.x + room.w/2}" y="${room.y + room.h/2}" text-anchor="middle" font-size="10" font-weight="bold" fill="var(--primary-color)">${room.name}</text>
+                            `).join('')}
+                            <g class="pulse-soft">
+                                <circle cx="${CONFIG.map.userPos.x}" cy="${CONFIG.map.userPos.y}" r="6" fill="var(--accent-color)"/>
+                                <circle cx="${CONFIG.map.userPos.x}" cy="${CONFIG.map.userPos.y}" r="12" fill="var(--accent-color)" opacity="0.2">
+                                    <animate attributeName="r" values="8;16;8" dur="2s" repeatCount="indefinite" />
+                                </circle>
+                            </g>
+                            <text x="${CONFIG.map.userPos.x - 10}" y="${CONFIG.map.userPos.y + 4}" font-size="8" font-weight="bold" fill="var(--accent-color)" text-anchor="end">${CONFIG.map.userPos.label}</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- VISITORS -->
+                <div id="screen-visitors" class="screen hidden fade-in h-full flex flex-col overflow-hidden min-h-0">
+                    <div class="mb-6 flex justify-between items-center shrink-0">
+                        <div>
+                            <h2 class="text-3xl font-bold" style="color:var(--primary-color)">Daftar Tamu</h2>
+                            <p class="text-slate-500">Pencarian siapa saja yang telah hadir</p>
+                        </div>
+                        <div class="relative w-64">
+                            <input type="text" id="visitor-search" onkeyup="filterVisitors()" placeholder="Cari nama..." class="w-full px-4 py-2 rounded-xl border border-slate-200 focus:border-purple-400 outline-none text-sm shadow-sm transition-all">
+                        </div>
+                    </div>
+                    <div id="visitor-list-target" class="flex-1 grid grid-cols-2 gap-4 overflow-y-auto pr-4 custom-scrollbar pb-12 min-h-0 touch-scroll">
+                        <!-- Visitor items injected here -->
+                    </div>
+                </div>
+            `;
+            renderVisitorList();
+        }
+
+        function renderVisitorList() {
+            const target = document.getElementById('visitor-list-target');
+            target.innerHTML = CONFIG.visitors.map(name => {
+                const initials = name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
+                return `
+                    <div class="visitor-card bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 transition-all hover:border-purple-200">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-sm" style="background-color:var(--accent-color)">${initials}</div>
+                        <span class="font-semibold text-slate-700">${name}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Clock & Navigation Logic
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+            document.getElementById('clock').textContent = timeStr;
+        }
+
+        function navigate(screenId, isAuto = false) {
+            if (!isAuto) wakeUp();
+            document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+            const target = document.getElementById('screen-' + screenId);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active-nav'));
+            const activeNav = document.getElementById('nav-' + screenId);
+            if (activeNav) activeNav.classList.add('active-nav');
+            
+            if (!isAuto) currentScreenIndex = screens.indexOf(screenId);
+        }
+
+        // Slideshow Logic
+        function startSlideshow() {
+            stopSlideshow();
+            progressBar.classList.add('show-progress');
+            slideshowInterval = setInterval(() => {
+                currentScreenIndex = (currentScreenIndex + 1) % screens.length;
+                navigate(screens[currentScreenIndex], true);
+                progressBar.classList.remove('show-progress');
+                void progressBar.offsetWidth;
+                progressBar.classList.add('show-progress');
+            }, 8000);
+        }
+
+        function stopSlideshow() {
+            clearInterval(slideshowInterval);
+            progressBar.classList.remove('show-progress');
+        }
+
+        function wakeUp() {
+            stopSlideshow();
+            resetIdleTimer();
+        }
+
+        function resetIdleTimer() {
+            clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => {
+                startSlideshow();
+            }, 20000); 
+        }
+
+        // Functional Logics
+        function showCheckIn() {
+            document.getElementById('check-in-modal').classList.remove('hidden');
+        }
+
+        function hideCheckIn() {
+            document.getElementById('check-in-modal').classList.add('hidden');
+        }
+
+        function completeCheckIn(e) {
+            e.stopPropagation();
+            const name = document.getElementById('name-input').value.trim() || 'Tamu';
+            document.getElementById('user-name-display').textContent = name;
+            document.getElementById('success-screen').classList.remove('hidden');
+            setTimeout(() => resetApp(null), 5000);
+        }
+
+        function resetApp() {
+            document.getElementById('success-screen').classList.add('hidden');
+            document.getElementById('check-in-modal').classList.add('hidden');
+            document.getElementById('name-input').value = '';
+            navigate('home');
+        }
+
+        function filterVisitors() {
+            const query = document.getElementById('visitor-search').value.toLowerCase();
+            document.querySelectorAll('.visitor-card').forEach(card => {
+                const name = card.querySelector('span').textContent.toLowerCase();
+                card.style.display = name.includes(query) ? 'flex' : 'none';
+            });
+        }
+
+        // Run
+        initApp();
+        document.addEventListener('contextmenu', event => event.preventDefault());
+    </script>
+</body>
+</html>
